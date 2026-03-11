@@ -2,61 +2,79 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# load model
+# Load model และ encoder
 model = joblib.load("model.pkl")
 encoders = joblib.load("encoders.pkl")
 target_encoder = joblib.load("target_encoder.pkl")
 
 st.title("📚 Comic Age Rating Predictor")
 
-release_year = st.number_input("Release Year",1980,2025,2000)
-page_count = st.number_input("Page Count",1,1000,30)
-volume_count = st.number_input("Volume Count",1,50,1)
+st.subheader("Comic Information")
 
-genre = st.selectbox("Genre",
-["Action","Fantasy","Comedy","Drama"])
+# Numeric inputs
+release_year = st.number_input("Release Year", 1900, 2030, 2000)
+page_count = st.number_input("Page Count", 1, 2000, 100)
+volume_count = st.number_input("Volume Count", 1, 100, 1)
 
-country = st.selectbox("Country of Origin",
-["USA","Japan","Korea"])
+# ใช้ค่าจาก encoder โดยตรง (แก้ unseen label error)
+genre = st.selectbox(
+    "Genre",
+    encoders["Genre"].classes_
+)
 
-format_type = st.selectbox("Format",
-["Print","Digital"])
+country = st.selectbox(
+    "Country of Origin",
+    encoders["Country of Origin"].classes_
+)
 
-language = st.selectbox("Language",
-["English","Japanese"])
+format_type = st.selectbox(
+    "Format",
+    encoders["Format"].classes_
+)
 
-status = st.selectbox("Status",
-["Ongoing","Completed"])
+language = st.selectbox(
+    "Language",
+    encoders["Language"].classes_
+)
 
+status = st.selectbox(
+    "Status",
+    encoders["Status"].classes_
+)
 
-if st.button("Predict Age Rating"):
+if st.button("🔍 Predict Age Rating"):
 
+    # สร้าง dataframe input
     input_data = pd.DataFrame([{
-        "Release Year":release_year,
-        "Page Count":page_count,
-        "Volume Count":volume_count,
-        "Genre":genre,
-        "Country of Origin":country,
-        "Format":format_type,
-        "Language":language,
-        "Status":status
+        "Release Year": release_year,
+        "Page Count": page_count,
+        "Volume Count": volume_count,
+        "Genre": genre,
+        "Country of Origin": country,
+        "Format": format_type,
+        "Language": language,
+        "Status": status
     }])
 
-
+    # Encode categorical columns
     for col in encoders:
         input_data[col] = encoders[col].transform(input_data[col])
 
-
+    # Prediction
     pred = model.predict(input_data)[0]
     proba = model.predict_proba(input_data)[0]
 
     rating = target_encoder.inverse_transform([pred])[0]
 
-    st.success(f"Predicted Age Rating: {rating}")
+    st.success(f"🎯 Predicted Age Rating: {rating}")
 
     st.subheader("Prediction Probability")
 
-    for i,label in enumerate(target_encoder.classes_):
+    # แสดง probability
+    for i, label in enumerate(target_encoder.classes_):
 
-        st.write(f"{label}: {round(proba[i]*100,2)}%")
+        percent = round(proba[i] * 100, 2)
+
+        st.write(f"{label}: {percent}%")
+
         st.progress(float(proba[i]))
